@@ -402,7 +402,7 @@ with tabs[1]:
                 dfa = sys_df_f[["Timestamp"]+ac].set_index("Timestamp").resample("1H").sum().reset_index()
                 heat = go.Figure(go.Heatmap(
                     z=dfa[ac].T.values, x=dfa["Timestamp"], y=[short(c) for c in ac],
-                    colorscale=[[0,"#161b22"],[0.01,"#d2992288"],[1,"#f85149"]],showscale=False))
+                    colorscale=[[0,"#161b22"],[0.01,"#d29922"],[1,"#f85149"]],showscale=False))
                 heat.update_layout(**CHART, title="Alarm Hourly Heatmap", height=max(240, len(ac)*32))
                 st.plotly_chart(heat, use_container_width=True)
 
