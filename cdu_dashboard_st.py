@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
-import os, glob, re, json
+import os, glob, re, json, zipfile, tempfile, shutil
 from pathlib import Path
 from collections import defaultdict
 
@@ -240,23 +240,72 @@ with st.sidebar:
     st.divider()
 
     st.subheader("📂 Load Unit Folder")
-    st.caption("Paste the path to a CDU unit folder (contains cdu/, config/, verbose_logs/)")
-
-    folder_path = st.text_input("Folder path", placeholder=r"e.g. C:\...\02242026 Logs\0511202500MS DH4 263")
+    mode = st.radio("Input mode", ["⬆️ Upload ZIP", "📁 Local Path"], horizontal=True)
 
     unit_path = None
-    if folder_path and os.path.isdir(folder_path.strip()):
-        fp = folder_path.strip()
-        sub_units = find_units(fp)
-        if sub_units:
-            selected = st.selectbox("Unit folders detected:", sub_units,
-                                    format_func=os.path.basename)
-            unit_path = selected
-        else:
-            st.success("✓ This is the unit folder")
-            unit_path = fp
-    elif folder_path:
-        st.error("Path not found")
+
+    # ── ZIP UPLOAD MODE ───────────────────────────────────────────────────────
+    if mode == "⬆️ Upload ZIP":
+        st.caption("Zip the unit folder (must contain cdu/, config/, verbose_logs/) and upload it.")
+        uploaded = st.file_uploader("Drop ZIP here", type="zip", label_visibility="collapsed")
+
+        if uploaded:
+            # Reuse same temp dir for same file (keyed by name+size)
+            cache_key = f"zip_{uploaded.name}_{uploaded.size}"
+            if st.session_state.get("zip_key") != cache_key:
+                # Clean up previous temp dir
+                old = st.session_state.get("zip_tmp")
+                if old and os.path.isdir(old):
+                    shutil.rmtree(old, ignore_errors=True)
+                # Extract to new temp dir
+                tmp = tempfile.mkdtemp(prefix="cdu_")
+                with zipfile.ZipFile(uploaded) as zf:
+                    zf.extractall(tmp)
+                st.session_state["zip_tmp"] = tmp
+                st.session_state["zip_key"] = cache_key
+
+            tmp = st.session_state["zip_tmp"]
+            # Find the unit folder inside the zip
+            sub_units = find_units(tmp)
+            if sub_units:
+                if len(sub_units) == 1:
+                    unit_path = sub_units[0]
+                    st.success(f"✓ Loaded: {os.path.basename(unit_path)}")
+                else:
+                    selected = st.selectbox("Select unit:", sub_units,
+                                            format_func=os.path.basename)
+                    unit_path = selected
+            elif os.path.isdir(os.path.join(tmp, "cdu")):
+                unit_path = tmp
+                st.success(f"✓ Loaded: {uploaded.name}")
+            else:
+                # Look one level deeper
+                for item in os.listdir(tmp):
+                    candidate = os.path.join(tmp, item)
+                    if os.path.isdir(candidate) and os.path.isdir(os.path.join(candidate, "cdu")):
+                        unit_path = candidate
+                        st.success(f"✓ Loaded: {item}")
+                        break
+                if not unit_path:
+                    st.error("ZIP doesn't contain a valid unit folder (no cdu/ subfolder found).")
+
+    # ── LOCAL PATH MODE ───────────────────────────────────────────────────────
+    else:
+        st.caption("Paste the path to a CDU unit folder (contains cdu/, config/, verbose_logs/)")
+        folder_path = st.text_input("Folder path",
+                                    placeholder=r"e.g. C:\...\02242026 Logs\0511202500MS DH4 263")
+        if folder_path and os.path.isdir(folder_path.strip()):
+            fp = folder_path.strip()
+            sub_units = find_units(fp)
+            if sub_units:
+                selected = st.selectbox("Unit folders detected:", sub_units,
+                                        format_func=os.path.basename)
+                unit_path = selected
+            else:
+                st.success("✓ This is the unit folder")
+                unit_path = fp
+        elif folder_path:
+            st.error("Path not found")
 
     st.divider()
     st.subheader("🔍 Filter")
@@ -273,7 +322,7 @@ with st.sidebar:
 # MAIN CONTENT
 # ─────────────────────────────────────────────────────────────────────────────
 if not unit_path:
-    st.info("📂 Paste a CDU unit folder path in the sidebar to get started.")
+    st.info("📂 Upload a ZIP file or paste a local folder path in the sidebar to get started.")
     st.stop()
 
 # Load all data (cached)
