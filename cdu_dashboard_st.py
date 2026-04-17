@@ -418,7 +418,7 @@ with tabs[0]:
                 line=dict(color=PAL[i+6], width=1.5),
                 fill="tozeroy" if i == 0 else None), row=4, col=1)
         fig.update_layout(**CHART, height=700)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # ════════════════════════════════════════════════════════
 # 🚨 ALARMS
@@ -444,21 +444,21 @@ with tabs[1]:
                     marker_color=[sev_color(v) for v in vals],
                     text=[f"{v:,}" for v in vals], textposition="outside"))
                 bar.update_layout(**CHART, title="Alarm Event Counts", height=max(300, len(s_al)*40))
-                st.plotly_chart(bar, use_container_width=True)
+                st.plotly_chart(bar, width="stretch")
 
             with col2:
                 ac  = [k for k, _ in s_al]
-                dfa = sys_df_f[["Timestamp"]+ac].set_index("Timestamp").resample("1H").sum().reset_index()
+                dfa = sys_df_f[["Timestamp"]+ac].set_index("Timestamp").resample("1h").sum().reset_index()
                 heat = go.Figure(go.Heatmap(
                     z=dfa[ac].T.values, x=dfa["Timestamp"], y=[short(c) for c in ac],
                     colorscale=[[0,"#161b22"],[0.01,"#d29922"],[1,"#f85149"]],showscale=False))
                 heat.update_layout(**CHART, title="Alarm Hourly Heatmap", height=max(240, len(ac)*32))
-                st.plotly_chart(heat, use_container_width=True)
+                st.plotly_chart(heat, width="stretch")
 
             tbl_data = [{"Alarm": short(k), "Count": v,
                          "Severity": "Critical" if v>1000 else "Warning" if v>100 else "Minor"}
                         for k, v in s_al]
-            st.dataframe(pd.DataFrame(tbl_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(tbl_data), width="stretch", hide_index=True)
 
 # ════════════════════════════════════════════════════════
 # 🌡 TEMP & FLOW
@@ -482,7 +482,7 @@ with tabs[2]:
             fig.add_trace(go.Scatter(x=ds["Timestamp"], y=ds[col], name=short(col),
                 line=dict(color=PAL[i+4], width=1.5)), row=3, col=1)
         fig.update_layout(**CHART, height=600)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # ════════════════════════════════════════════════════════
 # ⚙️ PUMPS & POWER
@@ -504,13 +504,13 @@ with tabs[3]:
             fig.add_trace(go.Scatter(x=ds["Timestamp"], y=ds[col], name=short(col),
                 line=dict(color=PAL[i+5], width=1.5)), row=3, col=1)
         fig.update_layout(**CHART, height=580)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         if "Valve Bypass Reading" in ds.columns:
             vf = go.Figure(go.Scatter(x=ds["Timestamp"], y=ds["Valve Bypass Reading"],
                 fill="tozeroy", name="Valve Bypass %", line=dict(color="#58a6ff", width=1.5)))
             vf.update_layout(**CHART, title="Valve Bypass (%)", height=240)
-            st.plotly_chart(vf, use_container_width=True)
+            st.plotly_chart(vf, width="stretch")
 
 # ════════════════════════════════════════════════════════
 # 🌐 API TRAFFIC
@@ -533,8 +533,8 @@ with tabs[4]:
         fig_rt.update_layout(**CHART, title="API Response Time (ms) — 🔴 = error", height=260)
 
         col1, col2 = st.columns(2)
-        with col1: st.plotly_chart(fig_vol, use_container_width=True)
-        with col2: st.plotly_chart(fig_rt,  use_container_width=True)
+        with col1: st.plotly_chart(fig_vol, width="stretch")
+        with col2: st.plotly_chart(fig_rt,  width="stretch")
 
         st_counts = api_df_f["Status"].value_counts().sort_index()
         def st_color(s): return "#3fb950" if s < 300 else "#d29922" if s < 400 else "#f85149"
@@ -556,16 +556,16 @@ with tabs[4]:
         fig_cl.update_layout(**CHART, title="Requests by Client IP", height=300)
 
         col3, col4 = st.columns(2)
-        with col3: st.plotly_chart(fig_st, use_container_width=True)
-        with col4: st.plotly_chart(fig_cl, use_container_width=True)
+        with col3: st.plotly_chart(fig_st, width="stretch")
+        with col4: st.plotly_chart(fig_cl, width="stretch")
 
-        st.plotly_chart(fig_ep, use_container_width=True)
+        st.plotly_chart(fig_ep, width="stretch")
 
         errors_df = api_df_f[api_df_f["Status"] >= 400].sort_values("Timestamp", ascending=False).head(100)
         if not errors_df.empty:
             st.markdown(f"**{len(errors_df)} API error responses (4xx/5xx)**")
             st.dataframe(errors_df[["Timestamp","Method","Endpoint","Status","ResponseMs","Client"]],
-                         use_container_width=True, hide_index=True)
+                         width="stretch", hide_index=True)
 
 # ════════════════════════════════════════════════════════
 # 📋 APP LOGS
@@ -582,19 +582,19 @@ with tabs[5]:
             fig_lv.add_trace(go.Bar(name=lvl, x=pivot.index.tolist(), y=pivot[lvl].tolist(),
                 marker_color=clr_map.get(lvl, "#bc8cff")))
         fig_lv.update_layout(**CHART, title="Log Level by Service", barmode="stack", height=340)
-        st.plotly_chart(fig_lv, use_container_width=True)
+        st.plotly_chart(fig_lv, width="stretch")
 
         errors = verb_df_f[verb_df_f["Level"].isin(["ERROR","CRITICAL","FATAL"])].copy()
         if not errors.empty:
-            ev = errors.set_index("Timestamp").resample("1H").size().reset_index(name="errors")
+            ev = errors.set_index("Timestamp").resample("1h").size().reset_index(name="errors")
             fe = go.Figure(go.Bar(x=ev["Timestamp"], y=ev["errors"],
                 name="Errors/hr", marker_color="#f85149"))
             fe.update_layout(**CHART, title="Error Rate Over Time", height=250)
-            st.plotly_chart(fe, use_container_width=True)
+            st.plotly_chart(fe, width="stretch")
 
             st.markdown(f"**{len(errors)} ERROR entries (max 250 shown)**")
             st.dataframe(errors[["Timestamp","Log","Level","Message"]].head(250),
-                         use_container_width=True, hide_index=True)
+                         width="stretch", hide_index=True)
 
 # ════════════════════════════════════════════════════════
 # 📣 ALERT / EVENTS
@@ -615,7 +615,7 @@ with tabs[6]:
                 showlegend=(i == 0)))
         fig_tl.update_layout(**CHART, title="Alert Timeline — ▲ Asserted  ▼ Deasserted",
                               height=max(280, len(alarms_list)*50))
-        st.plotly_chart(fig_tl, use_container_width=True)
+        st.plotly_chart(fig_tl, width="stretch")
 
         cnt = alrt_df_f[alrt_df_f["State"] == "asserted"]["Alarm"].value_counts()
         col1, col2 = st.columns(2)
@@ -624,7 +624,7 @@ with tabs[6]:
                 marker_color="#f85149", text=cnt.values, textposition="outside"))
             fig_cnt.update_layout(**CHART, title="Alert Occurrences",
                                    height=max(250, len(cnt)*38), showlegend=False)
-            st.plotly_chart(fig_cnt, use_container_width=True)
+            st.plotly_chart(fig_cnt, width="stretch")
 
         with col2:
             st.markdown("**Assert → Deassert Durations**")
@@ -642,14 +642,14 @@ with tabs[6]:
                                          "Deasserted At": str(r["Timestamp"])[:19], "Duration": dur_str})
                         last_on = None
             if dur_rows:
-                st.dataframe(pd.DataFrame(dur_rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(dur_rows), width="stretch", hide_index=True)
 
         st.markdown(f"**Full alert log — {len(alrt_df_f)} entries**")
-        st.dataframe(alrt_df_f, use_container_width=True, hide_index=True)
+        st.dataframe(alrt_df_f, width="stretch", hide_index=True)
 
     if not evnt_df_f.empty:
         st.markdown(f"**event_log_1 — {len(evnt_df_f)} entries**")
-        st.dataframe(evnt_df_f, use_container_width=True, hide_index=True)
+        st.dataframe(evnt_df_f, width="stretch", hide_index=True)
 
     if evttxts:
         st.subheader("EventLog_*.txt snapshots")
@@ -667,7 +667,7 @@ with tabs[7]:
     if health:
         st.subheader("system_health.txt")
         st.dataframe(pd.DataFrame(list(health.items()), columns=["Key","Value"]),
-                     use_container_width=True, hide_index=True)
+                     width="stretch", hide_index=True)
 
     if configs:
         for fname, cfg in configs.items():
