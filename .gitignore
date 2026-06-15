@@ -6,4 +6,3 @@ __pycache__/
 *.log
 *.tmp
 discovery_report.txt
-test.py
